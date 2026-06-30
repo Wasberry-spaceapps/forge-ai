@@ -1,0 +1,22 @@
+name = "forge-ai"
+main = "worker.js"
+compatibility_date = "2024-03-20"
+
+# Bind a KV Namespace to track daily rate limits by IP.
+# Run `npx wrangler kv:namespace create KV_STORE` and replace the id below.
+[[kv_namespaces]]
+binding = "KV_STORE"
+id = "9bcd5694ee5346b29899849704ac9b83"
+
+# Enable Cloudflare Workers AI
+[ai]
+binding = "AI"
+
+# Environment variables that are not secrets can be placed here.
+# Secrets like GEMINI_KEY and GROQ_KEY should be set via `npx wrangler secret put`
+[vars]
+# Optional: Set the daily limits here if you want to configure them without changing the code
+LIMIT_IMAGE = 50
+LIMIT_CHAT = 200
+LIMIT_TRANSCRIBE = 20
+LIMIT_DOCUMENT = 30

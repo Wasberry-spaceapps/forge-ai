@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forge AI - Free AI Suite</title>
+<style>
+  :root {
+    --bg: #080808;
+    --surface: #111111;
+    --card: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #7c3aed;
+    --accent-hover: #6d28d9;
+    --secondary: #06b6d4;
+    --text: #f0f0f0;
+    --subtext: #888888;
+    --radius: 8px;
+    --font: system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); overflow-x: hidden; }
+  
+  /* Navigation */
+  header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 100; }
+  .logo { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+  .tabs { display: flex; gap: 1rem; }
+  .tab-btn { background: none; border: none; color: var(--subtext); padding: 0.5rem 1rem; cursor: pointer; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+  .badge { background: var(--card); border: 1px solid var(--border); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; color: var(--secondary); display: flex; align-items: center; gap: 0.5rem; }
+  
+  /* Layouts */
+  .container { padding: 2rem; max-width: 1400px; margin: 0 auto; min-height: calc(100vh - 70px); }
+  .tool-panel { display: none; height: 100%; }
+  .tool-panel.active { display: block; animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  
+  .split-layout { display: flex; gap: 2rem; height: calc(100vh - 120px); }
+  .split-left { flex: 0 0 40%; display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; padding-right: 1rem; }
+  .split-right { flex: 0 0 60%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; overflow: hidden; }
+  
+  /* Generic UI Elements */
+  input, select, textarea { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 0.8rem; border-radius: var(--radius); font-family: var(--font); }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  button { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 0.8rem 1.2rem; border-radius: var(--radius); cursor: pointer; transition: all 0.2s; font-weight: 500; }
+  button:hover { background: var(--border); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  button.primary:hover { background: var(--accent-hover); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .chip { background: var(--card); border: 1px solid var(--border); padding: 0.4rem 0.8rem; border-radius: 20px; cursor: pointer; font-size: 0.9rem; }
+  .chip:hover, .chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+  
+  /* Tool 1: Image Studio */
+  .image-placeholder { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--border); }
+  .image-placeholder div { background: var(--card); }
+  .generated-image-container { flex: 1; display: none; align-items: center; justify-content: center; padding: 1rem; }
+  .generated-image-container img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  .image-actions { padding: 1rem; border-top: 1px solid var(--border); display: flex; gap: 1rem; background: var(--card); }
+  .history-thumbs { display: flex; gap: 0.5rem; overflow-x: auto; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .history-thumbs img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+  .history-thumbs img:hover { border-color: var(--accent); }
+  
+  /* Tool 2: Video Lab */
+  .stepper { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; color: var(--subtext); }
+  .step { display: flex; align-items: center; gap: 0.5rem; }
+  .step.active { color: var(--accent); font-weight: bold; }
+  .dropzone { border: 2px dashed var(--border); padding: 4rem 2rem; text-align: center; border-radius: var(--radius); cursor: pointer; background: var(--card); transition: all 0.2s; }
+  .dropzone:hover { border-color: var(--accent); background: var(--surface); }
+  .video-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; }
+  .action-card { background: var(--card); border: 1px solid var(--border); padding: 1.5rem; border-radius: var(--radius); cursor: pointer; text-align: center; transition: all 0.2s; }
+  .action-card:hover { border-color: var(--secondary); transform: translateY(-2px); }
+  .vid-workspace { display: flex; gap: 1rem; height: 100%; }
+  .vid-player-wrap { flex: 1; background: #000; border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  #vid-canvas-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .transcript-words { flex: 1; background: var(--surface); border-radius: var(--radius); padding: 1rem; overflow-y: auto; line-height: 2; font-size: 1.1rem; border: 1px solid var(--border); }
+  .t-word { padding: 0.2rem 0.4rem; border-radius: 4px; cursor: pointer; transition: background 0.1s; display: inline-block;}
+  .t-word:hover { background: var(--border); }
+  .t-word.deleted { text-decoration: line-through; color: var(--subtext); background: rgba(255,0,0,0.1); }
+  .vid-sidebar-controls { flex: 1; background: var(--surface); border-radius: var(--radius); padding: 1.5rem; overflow-y: auto; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 1rem;}
+  
+  /* Tool 3: Writing Hub */
+  .writing-layout { display: flex; gap: 2rem; height: calc(100vh - 120px); }
+  .writing-nav { flex: 0 0 250px; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; }
+  .w-tool-btn { text-align: left; background: transparent; border: none; padding: 0.8rem 1rem; color: var(--subtext); cursor: pointer; border-radius: var(--radius); }
+  .w-tool-btn:hover, .w-tool-btn.active { background: var(--card); color: var(--text); }
+  .writing-form { flex: 0 0 350px; display: flex; flex-direction: column; gap: 1rem; padding-right: 1rem; overflow-y: auto; }
+  .writing-output { flex: 1; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .output-box { flex: 1; padding: 1.5rem; overflow-y: auto; white-space: pre-wrap; line-height: 1.6; }
+  
+  /* Tool 4: Document Brain */
+  .doc-brain { display: flex; flex-direction: column; height: calc(100vh - 120px); gap: 1rem; }
+  .doc-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .doc-tab { padding: 1rem 2rem; cursor: pointer; color: var(--subtext); border-bottom: 2px solid transparent; }
+  .doc-tab.active { color: var(--accent); border-color: var(--accent); }
+  .doc-content { flex: 1; display: none; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; overflow-y: auto; }
+  .doc-content.active { display: block; }
+  .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; max-height: 400px;}
+  .msg { max-width: 80%; padding: 1rem; border-radius: var(--radius); line-height: 1.5;}
+  .msg.user { background: var(--card); align-self: flex-end; border-bottom-right-radius: 0; }
+  .msg.ai { background: var(--accent); align-self: flex-start; border-bottom-left-radius: 0; color: white;}
+  .chat-input { display: flex; gap: 0.5rem; }
+  
+  /* Usage Meter */
+  .usage-btn { position: fixed; bottom: 2rem; right: 2rem; background: var(--card); border: 1px solid var(--border); border-radius: 50px; padding: 0.8rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; }
+  .usage-panel { position: fixed; bottom: 5rem; right: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; width: 300px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 1000; }
+  .usage-panel.active { display: block; }
+  .progress-item { margin-bottom: 1rem; }
+  .progress-header { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.3rem; }
+  .progress-bar { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+  
+  /* Onboarding */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; }
+  .overlay-content { background: var(--surface); padding: 3rem; border-radius: var(--radius); max-width: 600px; text-align: center; border: 1px solid var(--border); }
+  
+  /* Utilities */
+  .loading { animation: pulse 1.5s infinite; opacity: 0.7; pointer-events: none; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡ Forge AI</div>
+  <div class="tabs">
+    <button class="tab-btn active" data-target="img-studio">🎨 Image</button>
+    <button class="tab-btn" data-target="vid-lab">✂️ Video</button>
+    <button class="tab-btn" data-target="write-hub">✍️ Writing</button>
+    <button class="tab-btn" data-target="doc-brain">📄 Documents</button>
+  </div>
+  <div class="badge">Free Forever • No Account Needed</div>
+</header>
+
+<div class="container">
+  
+  <!-- IMAGE STUDIO -->
+  <div id="img-studio" class="tool-panel active">
+    <div class="split-layout">
+      <div class="split-left">
+        <h3>Create Image</h3>
+        <textarea id="img-prompt" rows="5" placeholder="Describe the image you want to create..."></textarea>
+        
+        <div>
+          <label style="color:var(--subtext);font-size:0.9rem;margin-bottom:0.5rem;display:block;">Style</label>
+          <div class="chips" id="img-styles">
+            <div class="chip">Photorealistic</div><div class="chip">Digital Art</div>
+            <div class="chip">Oil Painting</div><div class="chip">Anime</div>
+            <div class="chip">Cinematic</div><div class="chip">Minimalist</div>
+            <div class="chip">Vintage</div><div class="chip">Neon</div>
+          </div>
+        </div>
+
+        <div>
+          <label style="color:var(--subtext);font-size:0.9rem;margin-bottom:0.5rem;display:block;">Aspect Ratio</label>
+          <div class="chips" id="img-ratios">
+            <div class="chip active" data-w="1024" data-h="1024">1:1</div>
+            <div class="chip" data-w="1280" data-h="720">16:9</div>
+            <div class="chip" data-w="720" data-h="1280">9:16</div>
+            <div class="chip" data-w="1024" data-h="768">4:3</div>
+          </div>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+          <input type="checkbox" id="img-enhance" style="width:auto;"> ✨ Enhance prompt with AI (Groq Llama 3)
+        </label>
+
+        <button class="primary" id="img-generate" style="margin-top:1rem;">Generate Image</button>
+        
+        <div class="history-thumbs" id="img-history"></div>
+      </div>
+      
+      <div class="split-right">
+        <div class="image-placeholder" id="img-placeholder">
+          <div></div><div></div><div></div><div></div>
+        </div>
+        <div class="generated-image-container" id="img-result-wrap">
+          <img id="img-result" src="" alt="Generating..." onerror="if(this.src && this.src !== window.location.href) { this.alt='Failed to load image'; window.showToast('Image failed to load', true); }">
+        </div>
+        <div class="image-actions hidden" id="img-actions">
+          <button id="img-download">⬇ Download</button>
+          <button id="img-variations">♻️ Variations</button>
+          <button id="img-copy-prompt">📋 Copy Prompt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIDEO LAB -->
+  <div id="vid-lab" class="tool-panel">
+    <div class="stepper" id="vid-stepper">
+      <div class="step active" data-step="1">1: Upload</div>
+      <div class="step" data-step="2">2: Edit</div>
+      <div class="step" data-step="3">3: Export</div>
+    </div>
+    
+    <div id="vid-step-1">
+      <div class="dropzone" id="vid-drop">
+        <h3>Drag & Drop Video Here</h3>
+        <p style="color:var(--subtext);margin-top:0.5rem;">MP4, MOV, WebM (Max 500MB)</p>
+        <input type="file" id="vid-file" accept="video/mp4,video/quicktime,video/webm" class="hidden">
+      </div>
+      <div id="vid-loading-engine" class="hidden" style="text-align:center;margin-top:2rem;">
+        Loading video engine (FFmpeg.wasm)...
+      </div>
+    </div>
+
+    <div id="vid-step-2" class="hidden">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+        <span id="vid-info" style="color:var(--secondary);"></span>
+        <button id="vid-back-upload" style="padding:0.3rem 0.6rem;font-size:0.8rem;">Change File</button>
+      </div>
+      
+      <div class="video-actions" id="vid-action-cards">
+        <div class="action-card" data-action="transcript"><h3>✂️ Transcript Editor</h3><p>Edit video by deleting text</p></div>
+        <div class="action-card" data-action="captions"><h3>🔤 Auto Captions</h3><p>Burn captions into video</p></div>
+        <div class="action-card" data-action="silence"><h3>⚡ Remove Silence</h3><p>Auto-cut dead air</p></div>
+        <div class="action-card" data-action="reformat"><h3>📱 Reformat for Social</h3><p>Change aspect ratio</p></div>
+      </div>
+
+      <!-- Editor Workspaces -->
+      <div id="vid-ui-container" class="hidden" style="height:500px;margin-top:1rem;">
+        <div class="vid-workspace">
+          <div class="vid-player-wrap">
+             <video id="vid-preview-player" controls style="width:100%;height:100%;max-height:100%;background:#000;object-fit:contain;"></video>
+             <canvas id="vid-canvas-overlay"></canvas>
+          </div>
+          
+          <!-- Transcript specific sidebar -->
+          <div class="transcript-words hidden" id="vid-transcript-box">
+             <!-- Words go here -->
+          </div>
+          
+          <!-- Captions specific sidebar -->
+          <div class="vid-sidebar-controls hidden" id="vid-captions-box">
+              <h3>Caption Style</h3>
+              <select id="vid-cap-style" style="margin-bottom:1rem;">
+                  <option value="white">Standard White</option>
+                  <option value="yellow">Standard Yellow</option>
+                  <option value="highlight">Word-highlight (TikTok style)</option>
+              </select>
+              <p style="color:var(--subtext);font-size:0.9rem;margin-bottom:auto;">Preview is shown on the video player as it plays.</p>
+              <button class="primary" id="vid-cap-export-btn" style="width:100%;">Burn Captions & Export</button>
+          </div>
+          
+          <!-- Silence specific sidebar -->
+          <div class="vid-sidebar-controls hidden" id="vid-silence-box">
+              <h3>Remove Silence</h3>
+              <p id="vid-silence-stats" style="color:var(--subtext);font-size:0.9rem;line-height:1.6;margin-bottom:auto;">Calculating silence...</p>
+              <button class="primary" id="vid-silence-export-btn" style="width:100%;" disabled>Remove Silence & Export</button>
+          </div>
+          
+          <!-- Reformat specific sidebar -->
+          <div class="vid-sidebar-controls hidden" id="vid-reformat-box">
+              <h3>Target Aspect Ratio</h3>
+              <div class="chips" id="vid-reformat-ratios" style="margin-bottom:auto;">
+                  <div class="chip active" data-ratio="9:16">9:16 (TikTok/Reels)</div>
+                  <div class="chip" data-ratio="1:1">1:1 (Instagram)</div>
+                  <div class="chip" data-ratio="16:9">16:9 (YouTube)</div>
+              </div>
+              <button class="primary" id="vid-reformat-export-btn" style="width:100%;">Reformat & Export</button>
+          </div>
+
+          <!-- Default Export Button (used by Transcript) -->
+          <div class="vid-sidebar-controls hidden" id="vid-default-export-box" style="flex: 0 0 200px;">
+              <h3 style="margin-bottom:auto;">Export</h3>
+              <button class="primary" id="vid-export-btn" style="width:100%;">Export Edited Video</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="vid-step-3" class="hidden" style="text-align:center;padding:4rem 0;">
+      <h2 id="vid-export-status">Exporting...</h2>
+      <div style="width:50%;height:10px;background:var(--border);margin:2rem auto;border-radius:5px;overflow:hidden;">
+        <div id="vid-export-progress" style="width:0%;height:100%;background:var(--accent);transition:width 0.2s;"></div>
+      </div>
+      <button class="primary hidden" id="vid-download-btn">Download Final Video</button>
+      <button class="hidden" id="vid-reset-btn" style="margin-left:1rem;">Start Over</button>
+    </div>
+  </div>
+
+  <!-- WRITING HUB -->
+  <div id="write-hub" class="tool-panel">
+    <div class="writing-layout">
+      <div class="writing-nav" id="w-nav">
+        <button class="w-tool-btn active" data-tool="email">✉️ Email Writer</button>
+        <button class="w-tool-btn" data-tool="ad">📢 Ad Copy</button>
+        <button class="w-tool-btn" data-tool="social">🐦 Social Media</button>
+        <button class="w-tool-btn" data-tool="script">🎬 Video Script</button>
+        <button class="w-tool-btn" data-tool="job">💼 Job Description</button>
+        <button class="w-tool-btn" data-tool="rewrite">🔄 Rewriter</button>
+      </div>
+      
+      <div class="writing-form" id="w-form-container">
+        <!-- Forms injected dynamically -->
+      </div>
+
+      <div class="writing-output">
+        <div style="padding:1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+           <div class="chips" id="w-models">
+             <div class="chip" data-model="fast">⚡ Fast (Llama 3.3)</div>
+             <div class="chip" data-model="smart">🧠 Smart (Gemini Flash)</div>
+             <div class="chip active" data-model="business">💼 Business (Groq Llama)</div>
+           </div>
+           <div style="display:flex;gap:0.5rem;">
+             <button id="w-copy" style="padding:0.3rem 0.6rem;font-size:0.8rem;">📋 Copy</button>
+             <button id="w-dl" style="padding:0.3rem 0.6rem;font-size:0.8rem;">⬇ DL</button>
+           </div>
+        </div>
+        <div class="output-box" id="w-output">Generate content to see it here...</div>
+        
+        <div style="padding:0.5rem 1rem; border-top:1px solid var(--border); text-align:center;" class="hidden" id="w-continue-wrap">
+           <button class="primary" id="w-continue" style="width:100%;">Continue Generation</button>
+        </div>
+
+        <div style="padding:1rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;background:var(--card);">
+           <button class="w-refine" data-prompt="Make it shorter">Shorter</button>
+           <button class="w-refine" data-prompt="Make it longer">Longer</button>
+           <button class="w-refine" data-prompt="Make it more professional">Professional</button>
+           <button class="w-refine" data-prompt="Make it more casual">Casual</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCUMENT BRAIN -->
+  <div id="doc-brain" class="tool-panel">
+    <div id="doc-upload" style="margin-bottom:2rem;">
+       <div class="dropzone" id="doc-drop">
+          <h3>Upload Document for AI Analysis</h3>
+          <p style="color:var(--subtext);margin-top:0.5rem;">PDF, DOCX, TXT, MD, CSV (Max 10MB)</p>
+          <input type="file" id="doc-file" accept=".pdf,.docx,.txt,.csv,.md" class="hidden">
+       </div>
+    </div>
+
+    <div id="doc-workspace" class="hidden doc-brain" style="height:calc(100vh - 250px);">
+       <div style="display:flex;justify-content:space-between;align-items:center;">
+         <h3 id="doc-title" style="color:var(--secondary);">filename.pdf</h3>
+         <button id="doc-close" style="padding:0.3rem 0.8rem;font-size:0.8rem;">Close Document</button>
+       </div>
+       
+       <div style="border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;height:100%;">
+          <div class="doc-tabs">
+             <div class="doc-tab active" data-tab="doc-summary">📋 Summary</div>
+             <div class="doc-tab" data-tab="doc-chat">💬 Chat</div>
+             <div class="doc-tab" data-tab="doc-extract">🔍 Extract</div>
+             <div class="doc-tab" data-tab="doc-rewrite">✍️ Rewrite</div>
+          </div>
+          
+          <div id="doc-summary" class="doc-content active">
+             <div id="doc-summary-content">Generating summary...</div>
+             <button class="primary hidden" id="doc-print-btn" style="margin-top:1rem;">Print to PDF</button>
+          </div>
+
+          <div id="doc-chat" class="doc-content" style="display:none;flex-direction:column;padding:1rem;">
+             <div class="chat-messages" id="doc-chat-box"></div>
+             <div class="chat-input" style="margin-top:auto;">
+                <input type="text" id="doc-chat-input" placeholder="Ask a question about this document...">
+                <button class="primary" id="doc-chat-send">Send</button>
+             </div>
+          </div>
+
+          <div id="doc-extract" class="doc-content" style="display:none;">
+             <div class="chips" style="margin-bottom:1.5rem;">
+                <div class="chip doc-ex-btn" data-ex="dates">📅 Dates</div>
+                <div class="chip doc-ex-btn" data-ex="names">👤 Names</div>
+                <div class="chip doc-ex-btn" data-ex="numbers">🔢 Financials/Numbers</div>
+                <div class="chip doc-ex-btn" data-ex="action items">✅ Action Items</div>
+             </div>
+             <div style="position:relative;">
+               <pre id="doc-extract-res" style="background:var(--card);padding:1rem;border-radius:var(--radius);min-height:200px;white-space:pre-wrap;font-family:monospace;">Select an extraction type above.</pre>
+               <button id="doc-extract-copy" class="hidden" style="position:absolute;top:10px;right:10px;padding:0.2rem 0.5rem;font-size:0.8rem;">Copy JSON</button>
+             </div>
+          </div>
+          
+          <div id="doc-rewrite" class="doc-content" style="display:none;">
+             <div class="chips" style="margin-bottom:1.5rem;">
+                <div class="chip doc-rew-btn" data-rew="Simpler language">Simpler language</div>
+                <div class="chip doc-rew-btn" data-rew="More formal">More formal</div>
+                <div class="chip doc-rew-btn" data-rew="Shorter">Shorter</div>
+                <div class="chip doc-rew-btn" data-rew="Bullet points">Bullet points</div>
+                <div class="chip doc-rew-btn" data-rew="Executive summary">Executive summary</div>
+                <div class="chip doc-rew-btn" data-rew="Translate to Spanish">Translate → ES</div>
+             </div>
+             <div style="display:flex;gap:1rem;">
+               <div style="flex:1;">
+                 <label style="color:var(--subtext);font-size:0.9rem;">Original Excerpt (Paste or type here)</label>
+                 <textarea id="doc-rew-input" rows="10"></textarea>
+               </div>
+               <div style="flex:1;">
+                 <label style="color:var(--subtext);font-size:0.9rem;">Rewritten</label>
+                 <div id="doc-rew-output" style="background:var(--card);padding:1rem;border-radius:var(--radius);min-height:200px;white-space:pre-wrap;">...</div>
+               </div>
+             </div>
+          </div>
+       </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Usage Meter Panel -->
+<div class="usage-btn" id="usage-btn">⚡ Usage</div>
+<div class="usage-panel" id="usage-panel">
+   <h4 style="margin-bottom:1rem;color:var(--secondary);">Daily AI Limits</h4>
+   <div id="usage-bars">Loading...</div>
+   <p style="color:var(--subtext);font-size:0.8rem;text-align:center;margin-top:1rem;">Resets at midnight UTC<br>No account needed.</p>
+</div>
+
+<!-- Onboarding Overlay -->
+<div class="overlay" id="onboarding">
+  <div class="overlay-content">
+    <h1 style="color:var(--accent);margin-bottom:1rem;font-size:3rem;">⚡ Forge AI</h1>
+    <h3 style="margin-bottom:2rem;color:var(--text);">Four AI tools. Completely free.<br>No account. No credit card.</h3>
+    <ul style="text-align:left;color:var(--subtext);margin-bottom:2rem;line-height:1.8;padding-left:2rem;font-size:1.1rem;">
+      <li>Your files stay on your device — only text is sent for AI processing.</li>
+      <li>Four premium tools for Image, Video, Writing, and Documents.</li>
+      <li>Powered by Cloudflare Workers AI, Gemini Flash, and Groq.</li>
+    </ul>
+    <button class="primary" style="width:100%;font-size:1.2rem;padding:1rem;" id="onboard-start">Get Started →</button>
+  </div>
+</div>
+
+<script>
+// --- CONFIG ---
+const API_BASE = 'https://forgeai-api.wasberry.workers.dev'; // Update this to your deployed Cloudflare worker URL
+
+// --- STATE ---
+let currentDocText = "";
+let docChatHistory = [];
+let ffmpeg = null;
+let currentVideoFile = null;
+let transcriptData = [];
+let wModel = "business";
+let lastImgPrompt = "";
+let currentWPrompt = "";
+let videoActiveMode = "";
+let reformatRatio = "9:16";
+
+// --- UTILS ---
+const $ = id => document.getElementById(id);
+const $$ = q => document.querySelectorAll(q);
+
+function showToast(msg, isError=false) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${isError?'#ef4444':'var(--accent)'};color:white;padding:1rem 2rem;border-radius:30px;z-index:9999;box-shadow:0 5px 15px rgba(0,0,0,0.3);animation:fadeIn 0.3s;`;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity=0; setTimeout(()=>t.remove(),300) }, 3000);
+}
+
+async function apiCall(endpoint, payload, isStream=false) {
+    if(API_BASE === 'YOUR_WORKER_URL') {
+       showToast("Please deploy the Cloudflare worker and set API_BASE in index.html", true);
+       throw new Error("API_BASE not set");
+    }
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if(!res.ok) {
+        let errStr = "API Error";
+        try { const j = await res.json(); errStr = j.error || errStr; } catch(e){}
+        if(res.status===429) errStr = "Daily limit reached — resets at midnight UTC";
+        showToast(errStr, true);
+        throw new Error(errStr);
+    }
+    updateUsage();
+    return isStream ? res.body : res.json();
+}
+
+// --- INITIALIZATION ---
+document.addEventListener("DOMContentLoaded", () => {
+    if(!localStorage.getItem("fg_visited")) {
+        $('onboarding').style.display = 'flex';
+    }
+    $('onboard-start').onclick = () => {
+        localStorage.setItem("fg_visited", "true");
+        $('onboarding').style.display = 'none';
+    };
+
+    $$('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            $$('.tab-btn').forEach(b => b.classList.remove('active'));
+            $$('.tool-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            $(btn.dataset.target).classList.add('active');
+        };
+    });
+
+    $('usage-btn').onclick = () => $('usage-panel').classList.toggle('active');
+    updateUsage();
+    initWritingForms();
+});
+
+async function updateUsage() {
+    if(API_BASE === 'YOUR_WORKER_URL') return;
+    try {
+        const res = await fetch(`${API_BASE}/api/status`);
+        const data = await res.json();
+        if(data.error) return;
+        const html = Object.entries(data).filter(([k])=>k!=='resetsAt').map(([k,v]) => `
+            <div class="progress-item">
+                <div class="progress-header"><span>${k.charAt(0).toUpperCase()+k.slice(1)}</span><span>${v.used} / ${v.limit}</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width:${Math.min((v.used/v.limit)*100, 100)}%"></div></div>
+            </div>
+        `).join('');
+        $('usage-bars').innerHTML = html;
+    } catch(e) { console.error("Usage fetch failed"); }
+}
+
+// --- IMAGE STUDIO ---
+let imgRatio = {w:1024, h:1024};
+$$('#img-styles .chip').forEach(c => c.onclick = () => c.classList.toggle('active'));
+$$('#img-ratios .chip').forEach(c => {
+    c.onclick = () => {
+        $$('#img-ratios .chip').forEach(b => b.classList.remove('active'));
+        c.classList.add('active');
+        imgRatio = { w: parseInt(c.dataset.w), h: parseInt(c.dataset.h) };
+    };
+});
+
+$('img-generate').onclick = async () => {
+    const prompt = $('img-prompt').value.trim();
+    if(!prompt) return showToast("Enter a prompt", true);
+    const styles = Array.from($$('#img-styles .chip.active')).map(c=>c.textContent).join(', ');
+    const enhance = $('img-enhance').checked;
+    
+    $('img-generate').classList.add('loading');
+    $('img-generate').disabled = true;
+    $('img-placeholder').style.display = 'none';
+    $('img-result-wrap').style.display = 'flex';
+    $('img-actions').classList.add('hidden');
+    $('img-result').src = '';
+    $('img-result').alt = 'Generating...';
+
+    try {
+        lastImgPrompt = prompt;
+        if(API_BASE === 'YOUR_WORKER_URL') throw new Error("API_BASE not configured");
+
+        const res = await fetch(`${API_BASE}/api/image`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ prompt, style: styles, width: imgRatio.w, height: imgRatio.h, enhance })
+        });
+        if(!res.ok) throw new Error(res.status===429 ? "Limit reached" : "Image failed");
+        
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        $('img-result').src = url;
+        $('img-result').alt = 'Generated';
+        $('img-actions').classList.remove('hidden');
+        
+        const h = document.createElement('img');
+        h.src = url;
+        h.onclick = () => { $('img-prompt').value = prompt; $('img-result').src = url; };
+        $('img-history').prepend(h);
+        if($('img-history').children.length > 6) $('img-history').lastChild.remove();
+        updateUsage();
+
+    } catch(e) {
+        showToast(e.message, true);
+        $('img-placeholder').style.display = 'grid';
+        $('img-result-wrap').style.display = 'none';
+    } finally {
+        $('img-generate').classList.remove('loading');
+        $('img-generate').disabled = false;
+    }
+};
+
+$('img-download').onclick = () => {
+    const a = document.createElement('a');
+    a.href = $('img-result').src;
+    a.download = `forge-image-${Date.now()}.jpg`;
+    a.click();
+};
+
+$('img-copy-prompt').onclick = () => {
+    navigator.clipboard.writeText(lastImgPrompt);
+    showToast("Prompt copied!");
+};
+
+$('img-variations').onclick = async () => {
+    const vars = ["cinematic lighting", "highly detailed", "vibrant colors", "masterpiece", "trending on artstation"];
+    const promises = [];
+    const basePrompt = lastImgPrompt;
+    
+    $('img-generate').classList.add('loading');
+    
+    for(let i=0; i<3; i++) {
+        const v = vars[Math.floor(Math.random()*vars.length)];
+        const p = fetch(`${API_BASE}/api/image`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ prompt: basePrompt + ", " + v, width: imgRatio.w, height: imgRatio.h, enhance: false })
+        }).then(async r => {
+            if(r.ok) {
+                const b = await r.blob();
+                const u = URL.createObjectURL(b);
+                const h = document.createElement('img');
+                h.src = u;
+                h.onclick = () => { $('img-prompt').value = basePrompt; $('img-result').src = u; };
+                $('img-history').prepend(h);
+            }
+        });
+        promises.push(p);
+    }
+    
+    await Promise.allSettled(promises);
+    $('img-generate').classList.remove('loading');
+    showToast("Variations added to history.");
+};
+
+// --- WRITING HUB ---
+const forms = {
+    email: `
+        <label>Purpose</label><select id="w-email-purpose"><option>Sales pitch</option><option>Follow-up</option><option>Apology</option><option>Announcement</option></select>
+        <label>Recipient</label><input type="text" id="w-email-recip" placeholder="e.g. Client, Manager, Team">
+        <label>Tone</label><select id="w-email-tone"><option>Professional</option><option>Friendly</option><option>Urgent</option></select>
+        <label>Key points</label><textarea id="w-email-pts" rows="4"></textarea>
+    `,
+    ad: `
+        <label>Product/Service</label><input type="text" id="w-ad-prod">
+        <label>Platform</label><select id="w-ad-plat"><option>Facebook</option><option>Google</option><option>LinkedIn</option></select>
+        <label>Target Audience</label><input type="text" id="w-ad-aud">
+        <label>Goal</label><select id="w-ad-goal"><option>Clicks</option><option>Sales</option><option>Awareness</option></select>
+    `,
+    social: `
+        <label>Topic / Link / Info</label><textarea id="w-soc-topic" rows="4"></textarea>
+        <label>Platform</label><select id="w-soc-plat"><option>Twitter</option><option>LinkedIn</option><option>Instagram</option></select>
+        <label style="display:flex;align-items:center;gap:0.5rem;"><input type="checkbox" id="w-soc-hash" checked style="width:auto;"> Include Hashtags</label>
+        <label style="display:flex;align-items:center;gap:0.5rem;"><input type="checkbox" id="w-soc-emo" checked style="width:auto;"> Include Emojis</label>
+    `,
+    script: `
+        <label>Topic</label><input type="text" id="w-script-topic">
+        <label>Target Platform</label><select id="w-script-plat"><option>YouTube</option><option>TikTok</option><option>Instagram Reels</option></select>
+        <label>Key Message</label><textarea id="w-script-msg" rows="3"></textarea>
+    `,
+    job: `
+        <label>Job Title</label><input type="text" id="w-job-title">
+        <label>Company/Industry</label><input type="text" id="w-job-comp">
+        <label>Key Requirements</label><textarea id="w-job-req" rows="3"></textarea>
+    `,
+    rewrite: `
+        <label>Original Text</label><textarea id="w-rew-text" rows="6"></textarea>
+        <label>Goal</label><select id="w-rew-goal"><option>Make it more professional</option><option>Make it simpler</option><option>Fix grammar</option><option>Summarize</option></select>
+    `
+};
+
+function initWritingForms() {
+    const renderForm = (tool) => {
+        $('w-form-container').innerHTML = forms[tool] + `<button class="primary" id="w-generate" style="margin-top:1rem;">Generate Content</button>`;
+        $('w-generate').onclick = () => generateWriting(tool);
+    };
+    $$('.w-tool-btn').forEach(btn => {
+        btn.onclick = () => {
+            $$('.w-tool-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderForm(btn.dataset.tool);
+        };
+    });
+    $$('#w-models .chip').forEach(c => {
+        c.onclick = () => {
+            $$('#w-models .chip').forEach(b => b.classList.remove('active'));
+            c.classList.add('active');
+            wModel = c.dataset.model;
+        }
+    });
+    renderForm('email');
+    
+    $$('.w-refine').forEach(btn => {
+        btn.onclick = () => refineWriting(btn.dataset.prompt);
+    });
+}
+
+async function handleStream(stream, containerId, append = false) {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let text = append ? $(containerId).textContent : "";
+    if(!append) $(containerId).innerHTML = "";
+    $('w-continue-wrap').classList.add('hidden');
+    
+    let buffer = "";
+    while(true) {
+        const {done, value} = await reader.read();
+        if(done) break;
+        
+        // Gemini raw JSON array fallback parsing (if ?alt=sse is missing)
+        const chunkStr = decoder.decode(value, {stream: true});
+        if (!chunkStr.includes('data: ') && (chunkStr.includes('"text":') || chunkStr.includes('"candidates":'))) {
+             const matches = [...chunkStr.matchAll(/"text":\s*"((?:[^"\\]|\\.)*)"/g)];
+             for (const m of matches) {
+                 text += m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+             }
+             $(containerId).textContent = text;
+             continue;
+        }
+
+        buffer += chunkStr;
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep incomplete line in buffer
+        
+        for(const line of lines) {
+            const trimmed = line.trim();
+            if(trimmed.startsWith('data: ') && !trimmed.includes('[DONE]')) {
+               try {
+                   const d = JSON.parse(trimmed.substring(6));
+                   if(d.choices && d.choices[0].delta.content) text += d.choices[0].delta.content;
+                   else if(d.candidates && d.candidates[0].content.parts[0].text) text += d.candidates[0].content.parts[0].text;
+                   else if(d.response) text += d.response; 
+               } catch(e){}
+            }
+        }
+        $(containerId).textContent = text;
+    }
+    $('w-continue-wrap').classList.remove('hidden');
+    return text;
+}
+
+async function generateWriting(tool) {
+    let prompt = "";
+    if(tool==='email') {
+        prompt = `Write an email. Purpose: ${$('w-email-purpose').value}. Recipient: ${$('w-email-recip').value}. Tone: ${$('w-email-tone').value}. Key points: ${$('w-email-pts').value}`;
+    } else if(tool==='ad') {
+        prompt = `Write ad copy for ${$('w-ad-plat').value}. Product: ${$('w-ad-prod').value}. Audience: ${$('w-ad-aud').value}. Goal: ${$('w-ad-goal').value}.`;
+    } else if(tool==='social') {
+        prompt = `Write a ${$('w-soc-plat').value} post. Topic: ${$('w-soc-topic').value}. Hashtags: ${$('w-soc-hash').checked}. Emojis: ${$('w-soc-emo').checked}.`;
+    } else if(tool==='script') {
+        prompt = `Write a ${$('w-script-plat').value} script about ${$('w-script-topic').value}. Key message: ${$('w-script-msg').value}. Provide visual cues.`;
+    } else if(tool==='job') {
+        prompt = `Write a job description for ${$('w-job-title').value} in ${$('w-job-comp').value}. Requirements: ${$('w-job-req').value}.`;
+    } else if(tool==='rewrite') {
+        prompt = `Rewrite this text. Goal: ${$('w-rew-goal').value}. Text: ${$('w-rew-text').value}`;
+    }
+
+    currentWPrompt = prompt;
+    $('w-generate').classList.add('loading');
+    $('w-generate').disabled = true;
+    try {
+        const stream = await apiCall('/api/chat', {
+            mode: wModel,
+            messages: [{role: 'system', content: "You are an expert copywriter. Output markdown."}, {role: 'user', content: prompt}]
+        }, true);
+        await handleStream(stream, 'w-output', false);
+    } catch(e) {
+        showToast(e.message, true);
+    } finally {
+        $('w-generate').classList.remove('loading');
+        $('w-generate').disabled = false;
+    }
+}
+
+async function refineWriting(instruction) {
+    const existing = $('w-output').textContent;
+    if(!existing || existing.startsWith('Generate')) return;
+    try {
+        const stream = await apiCall('/api/chat', {
+            mode: wModel,
+            messages: [
+                {role: 'system', content: "You are an expert copywriter."},
+                {role: 'user', content: currentWPrompt},
+                {role: 'assistant', content: existing},
+                {role: 'user', content: instruction}
+            ]
+        }, true);
+        await handleStream(stream, 'w-output', false);
+    } catch(e) { showToast(e.message, true); }
+}
+
+$('w-continue').onclick = async () => {
+    const existing = $('w-output').textContent;
+    if(!existing || existing.startsWith('Generate')) return;
+    $('w-continue-wrap').classList.add('hidden');
+    try {
+        const stream = await apiCall('/api/chat', {
+            mode: wModel,
+            messages: [
+                {role: 'user', content: currentWPrompt},
+                {role: 'assistant', content: existing},
+                {role: 'user', content: "Continue exactly where you left off"}
+            ]
+        }, true);
+        await handleStream(stream, 'w-output', true);
+    } catch(e) { showToast(e.message, true); }
+};
+
+$('w-copy').onclick = () => { navigator.clipboard.writeText($('w-output').textContent); showToast("Copied!"); };
+$('w-dl').onclick = () => {
+    const a = document.createElement('a');
+    a.href = 'data:text/plain;charset=utf-8,'+encodeURIComponent($('w-output').textContent);
+    a.download = `forge-writing-${Date.now()}.txt`;
+    a.click();
+};
+
+// --- DOCUMENT BRAIN ---
+function loadScript(src) {
+    return new Promise((res, rej) => {
+        if(document.querySelector(`script[src="${src}"]`)) return res();
+        const s = document.createElement('script');
+        s.src = src; s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+    });
+}
+
+$('doc-drop').onclick = () => $('doc-file').click();
+$('doc-file').onchange = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 10*1024*1024) return showToast("File too large (>10MB)", true);
+    
+    $('doc-upload').classList.add('hidden');
+    $('doc-workspace').classList.remove('hidden');
+    $('doc-title').textContent = `Loading ${file.name}...`;
+    $('doc-summary-content').textContent = "Extracting text...";
+    $('doc-print-btn').classList.add('hidden');
+
+    try {
+        currentDocText = "";
+        const ext = file.name.split('.').pop().toLowerCase();
+        if(ext === 'txt' || ext === 'csv' || ext === 'md') {
+            currentDocText = await file.text();
+        } else if (ext === 'pdf') {
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+            pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+            const ab = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: ab}).promise;
+            let text = "";
+            for(let i=1; i<=pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const tc = await page.getTextContent();
+                text += tc.items.map(s => s.str).join(' ') + "\n";
+            }
+            currentDocText = text;
+        } else if (ext === 'docx') {
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
+            const ab = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({arrayBuffer: ab});
+            currentDocText = result.value;
+        } else {
+            throw new Error("Unsupported format");
+        }
+
+        $('doc-title').textContent = file.name;
+        $('doc-summary-content').textContent = "Generating AI Summary...";
+        docChatHistory = [];
+        $('doc-chat-box').innerHTML = `
+            <div class="chips" style="justify-content:center;margin-bottom:1rem;">
+               <div class="chip" onclick="$('doc-chat-input').value='Summarize this';$('doc-chat-send').click()">Summarize this</div>
+               <div class="chip" onclick="$('doc-chat-input').value='What are the key points?';$('doc-chat-send').click()">Key points?</div>
+               <div class="chip" onclick="$('doc-chat-input').value='List any action items';$('doc-chat-send').click()">Action items</div>
+            </div>
+        `;
+
+        const res = await apiCall('/api/document', {
+            action: 'summarize', filename: file.name, content: currentDocText, question: ''
+        });
+        
+        let data = {};
+        try { data = JSON.parse(res.result); } catch(e) {}
+        
+        $('doc-summary-content').innerHTML = `
+            <h3 style="margin-bottom:1rem;color:var(--accent)">Overview</h3>
+            <p style="line-height:1.6;margin-bottom:1.5rem;">${data.overview || res.result}</p>
+            <h4 style="margin-bottom:0.5rem;color:var(--secondary)">Key Points</h4>
+            <ul style="margin-left:1.5rem;line-height:1.6;margin-bottom:1.5rem;">${(data.keyPoints||[]).map(p=>`<li>${p}</li>`).join('')}</ul>
+            <div style="display:flex;gap:2rem;">
+               <div><h4 style="margin-bottom:0.5rem;color:var(--secondary)">Topics</h4><div class="chips">${(data.topics||[]).map(t=>`<div class="chip" style="cursor:default">${t}</div>`).join('')}</div></div>
+               <div><h4 style="margin-bottom:0.5rem;color:var(--secondary)">Sentiment</h4><p>${data.sentiment||''}</p></div>
+            </div>
+        `;
+        $('doc-print-btn').classList.remove('hidden');
+        $('doc-print-btn').onclick = () => window.print();
+        
+    } catch(e) {
+        showToast("Document analysis failed: " + e.message, true);
+        $('doc-upload').classList.remove('hidden');
+        $('doc-workspace').classList.add('hidden');
+    }
+};
+
+$('doc-close').onclick = () => {
+    $('doc-upload').classList.remove('hidden');
+    $('doc-workspace').classList.add('hidden');
+    $('doc-file').value = '';
+};
+
+$$('.doc-tab').forEach(t => {
+    t.onclick = () => {
+        $$('.doc-tab').forEach(b => b.classList.remove('active'));
+        $$('.doc-content').forEach(c => c.style.display = 'none');
+        t.classList.add('active');
+        $(t.dataset.tab).style.display = t.dataset.tab === 'doc-chat' ? 'flex' : 'block';
+    }
+});
+
+async function sendDocChat() {
+    const q = $('doc-chat-input').value.trim();
+    if(!q) return;
+    $('doc-chat-input').value = '';
+    
+    const box = $('doc-chat-box');
+    box.innerHTML += `<div class="msg user">${q}</div>`;
+    box.scrollTop = box.scrollHeight;
+
+    try {
+        const res = await apiCall('/api/document', {
+            action: 'chat', filename: $('doc-title').textContent, content: currentDocText, question: q, history: docChatHistory
+        });
+        box.innerHTML += `<div class="msg ai">${res.result.replace(/\n/g, '<br>')}</div>`;
+        docChatHistory.push({role:'user', content: q});
+        docChatHistory.push({role:'assistant', content: res.result});
+        box.scrollTop = box.scrollHeight;
+    } catch(e) { showToast(e.message, true); }
+}
+$('doc-chat-send').onclick = sendDocChat;
+$('doc-chat-input').onkeypress = (e) => { if(e.key==='Enter') sendDocChat(); };
+
+$$('.doc-ex-btn').forEach(btn => {
+    btn.onclick = async () => {
+        const type = btn.dataset.ex;
+        $('doc-extract-res').textContent = `Extracting ${type}...`;
+        $('doc-extract-copy').classList.add('hidden');
+        try {
+            const res = await apiCall('/api/document', {
+                action: 'extract', filename: $('doc-title').textContent, content: currentDocText, question: type
+            });
+            let out = res.result;
+            try { out = JSON.stringify(JSON.parse(res.result), null, 2); } catch(e){} 
+            $('doc-extract-res').textContent = out;
+            $('doc-extract-copy').classList.remove('hidden');
+            $('doc-extract-copy').onclick = () => {
+                navigator.clipboard.writeText(out);
+                showToast("JSON copied!");
+            };
+        } catch(e) { $('doc-extract-res').textContent = "Failed: " + e.message; }
+    };
+});
+
+$$('.doc-rew-btn').forEach(btn => {
+    btn.onclick = async () => {
+        const instruction = btn.dataset.rew;
+        const excerpt = $('doc-rew-input').value.trim();
+        if(!excerpt) return showToast("Paste an excerpt first", true);
+        $('doc-rew-output').textContent = `Rewriting...`;
+        try {
+            const res = await apiCall('/api/document', {
+                action: 'rewrite', filename: $('doc-title').textContent, content: currentDocText, question: instruction + ". Text: " + excerpt
+            });
+            $('doc-rew-output').textContent = res.result;
+        } catch(e) { $('doc-rew-output').textContent = "Failed: " + e.message; }
+    };
+});
+
+// --- VIDEO LAB ---
+async function loadFFmpeg() {
+    if (ffmpeg && ffmpeg.loaded) return ffmpeg;
+    $('vid-loading-engine').classList.remove('hidden');
+
+    await loadScript("/ffmpeg/ffmpeg.js");
+    await loadScript("/ffmpeg/util.js");
+
+    const { FFmpeg } = window.FFmpegWASM;
+    const { fetchFile, toBlobURL } = window.FFmpegUtil;
+    window.fetchFile = fetchFile;
+
+    ffmpeg = new FFmpeg();
+    ffmpeg.on('progress', ({ progress }) => {
+        $('vid-export-progress').style.width = `${progress * 100}%`;
+    });
+
+    const coreURL = await toBlobURL('/ffmpeg/ffmpeg-core.js', 'text/javascript');
+    const wasmURL = await toBlobURL('/ffmpeg/ffmpeg-core.wasm', 'application/wasm');
+    const classWorkerURL = await toBlobURL('/ffmpeg/worker.js', 'text/javascript');
+
+    await ffmpeg.load({ coreURL, wasmURL, classWorkerURL });
+
+    // Download font for drawtext
+    try {
+        const res = await fetch('/fonts/Roboto-Regular.ttf');
+        const fontBuf = await res.arrayBuffer();
+        await ffmpeg.writeFile('roboto.ttf', new Uint8Array(fontBuf));
+    } catch(e) { console.log("Failed to fetch local font, subtitles may fail"); }
+
+    $('vid-loading-engine').classList.add('hidden');
+    return ffmpeg;
+}
+
+$('vid-drop').onclick = () => $('vid-file').click();
+$('vid-file').onchange = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 500*1024*1024) return showToast("File too large (>500MB)", true);
+    currentVideoFile = file;
+    
+    $$('.step').forEach(s => s.classList.remove('active'));
+    $$('.step[data-step="2"]').forEach(s=>s.classList.add('active'));
+    $('vid-step-1').classList.add('hidden');
+    $('vid-step-2').classList.remove('hidden');
+    $('vid-info').textContent = `${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`;
+    $('vid-preview-player').src = URL.createObjectURL(file);
+};
+
+$('vid-back-upload').onclick = () => {
+    $('vid-step-2').classList.add('hidden');
+    $('vid-step-1').classList.remove('hidden');
+    $$('.step').forEach(s => s.classList.remove('active'));
+    $$('.step[data-step="1"]').forEach(s=>s.classList.add('active'));
+    $('vid-file').value = '';
+    $('vid-ui-container').classList.add('hidden');
+    $('vid-action-cards').classList.remove('hidden');
+    videoActiveMode = "";
+};
+
+async function getTranscript() {
+    if(transcriptData.length > 0) return transcriptData;
+    const ff = await loadFFmpeg();
+    showToast("Extracting audio...");
+    await ff.writeFile('input.mp4', await window.fetchFile(currentVideoFile));
+    await ff.exec(['-i', 'input.mp4', '-vn', '-ac', '1', '-ar', '16000', '-ab', '32k', 'audio.mp3']);
+    const audioData = await ff.readFile('audio.mp3');
+    
+    let binary = '';
+    const bytes = new Uint8Array(audioData);
+    for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+    const b64 = btoa(binary);
+
+    showToast("Transcribing with Gemini...");
+    const res = await apiCall('/api/transcribe', { audioBase64: b64, mimeType: 'audio/mp3' });
+    transcriptData = res.words;
+    return transcriptData;
+}
+
+// Format Seconds to HH:MM:SS,mmm (SRT format)
+function toSRTTime(seconds) {
+    const d = new Date(seconds * 1000);
+    const h = String(d.getUTCHours()).padStart(2, '0');
+    const m = String(d.getUTCMinutes()).padStart(2, '0');
+    const s = String(d.getUTCSeconds()).padStart(2, '0');
+    const ms = String(d.getUTCMilliseconds()).padStart(3, '0');
+    return `${h}:${m}:${s},${ms}`;
+}
+
+// Generate SRT content
+function generateSRT(words, style = 'white') {
+    let srt = "";
+    // Group words into phrases (approx 2-3 seconds or punctuation)
+    let chunks = [];
+    let currentChunk = [];
+    let chunkStart = -1;
+    
+    for(let i=0; i<words.length; i++) {
+        const w = words[i];
+        if(w.deleted) continue;
+        if(chunkStart === -1) chunkStart = w.start;
+        currentChunk.push(w.word);
+        
+        const duration = w.end - chunkStart;
+        const hasPunctuation = /[.!?]$/.test(w.word);
+        if(duration > 2.5 || hasPunctuation || i === words.length-1) {
+            chunks.push({ start: chunkStart, end: w.end, text: currentChunk.join(' ') });
+            currentChunk = [];
+            chunkStart = -1;
+        }
+    }
+    
+    chunks.forEach((c, i) => {
+        srt += `${i+1}\n${toSRTTime(c.start)} --> ${toSRTTime(c.end)}\n`;
+        // Simple HTML for styling if supported by FFmpeg subtitles (basic ASS tags could be used but we rely on force_style)
+        srt += `${c.text}\n\n`;
+    });
+    return srt;
+}
+
+// Setup Canvas overlay for Captions
+const canvas = $('vid-canvas-overlay');
+const ctx = canvas.getContext('2d');
+const videoObj = $('vid-preview-player');
+
+function renderCaptionsOverlay() {
+    if(videoActiveMode !== 'captions') { ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+    
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const time = videoObj.currentTime;
+    let activeWord = transcriptData.find(w => time >= w.start && time <= w.end && !w.deleted);
+    
+    if(activeWord) {
+        // Find chunk context
+        const idx = transcriptData.indexOf(activeWord);
+        let start = Math.max(0, idx - 2);
+        let end = Math.min(transcriptData.length - 1, idx + 2);
+        let phrase = transcriptData.slice(start, end+1).filter(w=>!w.deleted).map(w => w.word).join(' ');
+        
+        const style = $('vid-cap-style').value;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = 'bold 36px Arial';
+        const x = canvas.width / 2;
+        const y = canvas.height - 40;
+        
+        if(style === 'white') {
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.strokeText(phrase, x, y);
+            ctx.fillText(phrase, x, y);
+        } else if(style === 'yellow') {
+            ctx.fillStyle = '#fde047';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.strokeText(phrase, x, y);
+            ctx.fillText(phrase, x, y);
+        } else if(style === 'highlight') {
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.strokeText(phrase, x, y);
+            ctx.fillText(phrase, x, y);
+            // Highlight just the active word
+            ctx.fillStyle = '#fde047';
+            ctx.fillText(activeWord.word, x, y); // simplified overlay logic
+        }
+    }
+    requestAnimationFrame(renderCaptionsOverlay);
+}
+videoObj.addEventListener('play', () => {
+    if(videoActiveMode==='captions') requestAnimationFrame(renderCaptionsOverlay);
+});
+
+$$('.action-card').forEach(card => {
+    card.onclick = async () => {
+        const action = card.dataset.action;
+        videoActiveMode = action;
+        $('vid-action-cards').classList.add('hidden');
+        $('vid-ui-container').classList.remove('hidden');
+        
+        $$('.vid-sidebar-controls, .transcript-words').forEach(e => e.classList.add('hidden'));
+        
+        if(action === 'transcript') {
+            $('vid-transcript-box').classList.remove('hidden');
+            $('vid-default-export-box').classList.remove('hidden');
+            const words = await getTranscript();
+            renderTranscriptWords(words);
+        } 
+        else if (action === 'captions') {
+            $('vid-captions-box').classList.remove('hidden');
+            await getTranscript(); // ensures transcript exists
+            requestAnimationFrame(renderCaptionsOverlay);
+        }
+        else if (action === 'silence') {
+            $('vid-silence-box').classList.remove('hidden');
+            const words = await getTranscript();
+            
+            // Calculate silence gaps > 1.2s
+            let totalSilence = 0;
+            let gapCount = 0;
+            for(let i=1; i<words.length; i++) {
+                const gap = words[i].start - words[i-1].end;
+                if(gap > 1.2) {
+                    totalSilence += gap;
+                    gapCount++;
+                    // Inject a fake silence block marked as deleted so the concat engine skips it
+                    words.splice(i, 0, { word: '[SILENCE]', start: words[i-1].end, end: words[i].start, deleted: true, isSilence: true });
+                    i++; // skip the newly inserted item
+                }
+            }
+            $('vid-silence-stats').innerHTML = `Found <b>${gapCount} gaps</b> totaling <b>${totalSilence.toFixed(1)}s</b> of dead air.`;
+            $('vid-silence-export-btn').disabled = false;
+        }
+        else if (action === 'reformat') {
+            $('vid-reformat-box').classList.remove('hidden');
+        }
+    };
+});
+
+$$('#vid-reformat-ratios .chip').forEach(c => {
+    c.onclick = () => {
+        $$('#vid-reformat-ratios .chip').forEach(b => b.classList.remove('active'));
+        c.classList.add('active');
+        reformatRatio = c.dataset.ratio;
+    };
+});
+
+function renderTranscriptWords(words) {
+    const box = $('vid-transcript-box');
+    box.innerHTML = '';
+    words.filter(w=>!w.isSilence).forEach((w, idx) => {
+        const span = document.createElement('span');
+        span.className = 't-word';
+        if(w.deleted) span.classList.add('deleted');
+        span.textContent = w.word + ' ';
+        span.onclick = () => {
+            span.classList.toggle('deleted');
+            w.deleted = span.classList.contains('deleted');
+        };
+        span.oncontextmenu = (e) => {
+            e.preventDefault();
+            span.classList.remove('deleted');
+            w.deleted = false;
+        };
+        box.appendChild(span);
+    });
+}
+
+async function doExport(actionType) {
+    const ff = await loadFFmpeg();
+    $('vid-ui-container').classList.add('hidden');
+    $('vid-step-2').classList.add('hidden');
+    $('vid-step-3').classList.remove('hidden');
+    $$('.step').forEach(s => s.classList.remove('active'));
+    $$('.step[data-step="3"]').forEach(s=>s.classList.add('active'));
+    $('vid-export-progress').style.width = '0%';
+    $('vid-export-status').textContent = 'Processing Video...';
+    
+    try {
+        await ff.writeFile('input.mp4', await window.fetchFile(currentVideoFile));
+        
+        let ffmpegArgs = [];
+        
+        if (actionType === 'transcript' || actionType === 'silence') {
+            let filterParts = [];
+            let n = 0;
+            let currentStart = -1;
+            
+            for(let i=0; i<=transcriptData.length; i++) {
+                const w = transcriptData[i];
+                if(w && !w.deleted) {
+                    if(currentStart === -1) currentStart = w.start;
+                } else {
+                    if(currentStart !== -1) {
+                        const end = transcriptData[i-1].end;
+                        filterParts.push(`[0:v]trim=start=${currentStart}:end=${end},setpts=PTS-STARTPTS[v${n}]; [0:a]atrim=start=${currentStart}:end=${end},asetpts=PTS-STARTPTS[a${n}]`);
+                        n++;
+                        currentStart = -1;
+                    }
+                }
+            }
+            if(n === 0) throw new Error("Everything was deleted!");
+            let concat = '';
+            for(let i=0; i<n; i++) concat += `[v${i}][a${i}]`;
+            concat += `concat=n=${n}:v=1:a=1[outv][outa]`;
+            ffmpegArgs = ['-i', 'input.mp4', '-filter_complex', filterParts.join(';') + ';' + concat, '-map', '[outv]', '-map', '[outa]', 'output.mp4'];
+        } 
+        else if (actionType === 'captions') {
+            const style = $('vid-cap-style').value;
+            const srtContent = generateSRT(transcriptData, style);
+            await ff.writeFile('subs.srt', srtContent);
+            
+            let forceStyle = "FontName=Roboto,FontSize=24";
+            if(style === 'yellow') forceStyle += ",PrimaryColour=&H0000FFFF";
+            
+            ffmpegArgs = ['-i', 'input.mp4', '-vf', `subtitles=subs.srt:force_style='${forceStyle}'`, 'output.mp4'];
+        }
+        else if (actionType === 'reformat') {
+            let targetW = 1080;
+            let targetH = 1920;
+            if (reformatRatio === '16:9') { targetW = 1920; targetH = 1080; }
+            if (reformatRatio === '1:1') { targetW = 1080; targetH = 1080; }
+            
+            const filterStr = `[0:v]split[original][copy];[copy]scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},gblur=sigma=20[blurred];[original]scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease[scaled];[blurred][scaled]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2`;
+            ffmpegArgs = ['-i', 'input.mp4', '-filter_complex', filterStr, 'output.mp4'];
+        }
+
+        await ff.exec(ffmpegArgs);
+        
+        const data = await ff.readFile('output.mp4');
+        const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+        
+        $('vid-export-status').textContent = 'Export Complete!';
+        $('vid-download-btn').classList.remove('hidden');
+        $('vid-reset-btn').classList.remove('hidden');
+        $('vid-download-btn').onclick = () => {
+            const a = document.createElement('a');
+            a.href = url; a.download = 'forge-edited.mp4'; a.click();
+        };
+    } catch(e) {
+        $('vid-export-status').textContent = 'Export Failed: ' + e.message;
+        $('vid-reset-btn').classList.remove('hidden');
+    }
+}
+
+$('vid-export-btn').onclick = () => doExport('transcript');
+$('vid-silence-export-btn').onclick = () => doExport('silence');
+$('vid-cap-export-btn').onclick = () => doExport('captions');
+$('vid-reformat-export-btn').onclick = () => doExport('reformat');
+
+$('vid-reset-btn').onclick = () => {
+    $('vid-step-3').classList.add('hidden');
+    $('vid-back-upload').click();
+    $('vid-download-btn').classList.add('hidden');
+    $('vid-reset-btn').classList.add('hidden');
+};
+
+</script>
+</body>
+</html>
