@@ -957,50 +957,66 @@ $$('.doc-rew-btn').forEach(btn => {
 });
 
 // --- VIDEO LAB ---
+let ffmpegPromise = null;
 async function loadFFmpeg() {
-    if (ffmpeg && ffmpeg.loaded) return ffmpeg;
-    $('vid-loading-engine').classList.remove('hidden');
-
-    await loadScript("https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js");
-    await loadScript("https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js");
-
-    const { FFmpeg } = window.FFmpegWASM;
-    const { fetchFile, toBlobURL } = window.FFmpegUtil;
-    window.fetchFile = fetchFile;
-
-    ffmpeg = new FFmpeg();
-    ffmpeg.on('progress', ({ progress }) => {
-        $('vid-export-progress').style.width = `${progress * 100}%`;
-    });
-
-    // Intercept Worker creation to bypass cross-origin restrictions on the CDN worker chunk
-    const OriginalWorker = window.Worker;
-    window.Worker = function(url, options) {
-        const urlStr = url.toString();
-        if (urlStr.includes('unpkg.com') && urlStr.includes('ffmpeg')) {
-            const blob = new Blob([`importScripts('${urlStr}');`], { type: 'text/javascript' });
-            return new OriginalWorker(URL.createObjectURL(blob), options);
-        }
-        return new OriginalWorker(url, options);
-    };
-
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
-    const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
-    const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
-
-    await ffmpeg.load({ coreURL, wasmURL });
+    if (ffmpegPromise) return ffmpegPromise;
     
-    window.Worker = OriginalWorker;
+    ffmpegPromise = (async () => {
+        try {
+            $('vid-loading-engine').classList.remove('hidden');
 
-    // Download font for drawtext
-    try {
-        const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/material-design-icons/3.0.1/iconfont/Roboto-Regular.ttf');
-        const fontBuf = await res.arrayBuffer();
-        await ffmpeg.writeFile('roboto.ttf', new Uint8Array(fontBuf));
-    } catch(e) { console.log("Failed to fetch font, subtitles may fail"); }
+            await loadScript("https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js");
+            await loadScript("https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js");
 
-    $('vid-loading-engine').classList.add('hidden');
-    return ffmpeg;
+            const { FFmpeg } = window.FFmpegWASM;
+            const { fetchFile, toBlobURL } = window.FFmpegUtil;
+            window.fetchFile = fetchFile;
+
+            ffmpeg = new FFmpeg();
+            ffmpeg.on('progress', ({ progress }) => {
+                $('vid-export-progress').style.width = `${progress * 100}%`;
+            });
+
+            // Intercept Worker creation to bypass cross-origin restrictions on the CDN worker chunk
+            const OriginalWorker = window.Worker;
+            window.Worker = function(url, options) {
+                const urlStr = url.toString();
+                if (urlStr.includes('unpkg.com') && urlStr.includes('ffmpeg')) {
+                    const blob = new Blob([`importScripts('${urlStr}');`], { type: 'text/javascript' });
+                    return new OriginalWorker(URL.createObjectURL(blob), options);
+                }
+                return new OriginalWorker(url, options);
+            };
+
+            const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+            const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+            const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+
+            await ffmpeg.load({ coreURL, wasmURL });
+            
+            window.Worker = OriginalWorker;
+
+            // Download font for drawtext
+            try {
+                const fontRes = await fetch('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf');
+                if (!fontRes.ok) throw new Error('Font 404');
+                const fontBuf = await fontRes.arrayBuffer();
+                await ffmpeg.writeFile('roboto.ttf', new Uint8Array(fontBuf));
+                window._ffmpegFontLoaded = true;
+            } catch(e) {
+                console.log('Font load failed, captions will use built-in font', e);
+                window._ffmpegFontLoaded = false;
+            }
+
+            $('vid-loading-engine').classList.add('hidden');
+            return ffmpeg;
+        } catch (e) {
+            ffmpegPromise = null;
+            $('vid-loading-engine').classList.add('hidden');
+            throw e;
+        }
+    })();
+    return ffmpegPromise;
 }
 
 $('vid-drop').onclick = () => $('vid-file').click();
@@ -1059,6 +1075,29 @@ function toSRTTime(seconds) {
 }
 
 // Generate SRT content
+// Returns [{start, end, text}] chunks for drawtext or SRT
+function generateCaptionChunks(words) {
+    const chunks = [];
+    let currentChunk = [];
+    let chunkStart = -1;
+    for (let i = 0; i < words.length; i++) {
+        const w = words[i];
+        if (w.deleted) continue;
+        if (chunkStart === -1) chunkStart = w.start;
+        currentChunk.push(w.word);
+        const duration = w.end - chunkStart;
+        const hasPunct = /[.!?]$/.test(w.word);
+        if (duration > 2.5 || hasPunct || i === words.length - 1) {
+            if (currentChunk.length > 0) {
+                chunks.push({ start: chunkStart, end: w.end, text: currentChunk.join(' ') });
+            }
+            currentChunk = [];
+            chunkStart = -1;
+        }
+    }
+    return chunks;
+}
+
 function generateSRT(words, style = 'white') {
     let srt = "";
     // Group words into phrases (approx 2-3 seconds or punctuation)
@@ -1263,13 +1302,23 @@ async function doExport(actionType) {
         } 
         else if (actionType === 'captions') {
             const style = $('vid-cap-style').value;
-            const srtContent = generateSRT(transcriptData, style);
-            await ff.writeFile('subs.srt', srtContent);
-            
-            let forceStyle = "FontName=Roboto,FontSize=24";
-            if(style === 'yellow') forceStyle += ",PrimaryColour=&H0000FFFF";
-            
-            ffmpegArgs = ['-i', 'input.mp4', '-vf', `subtitles=subs.srt:force_style='${forceStyle}'`, 'output.mp4'];
+            // Build drawtext filter chain — works in WASM builds that lack libass
+            const chunks = generateCaptionChunks(transcriptData);
+            if (chunks.length === 0) throw new Error('No transcript data to caption.');
+
+            const fontColor = (style === 'yellow') ? 'yellow' : 'white';
+            const fontFile = window._ffmpegFontLoaded ? ':fontfile=roboto.ttf' : '';
+            const boxParam = (style === 'box') ? ':box=1:boxcolor=black@0.5:boxborderw=6' : '';
+
+            // Escape single quotes and backslashes in text for FFmpeg drawtext
+            function escDT(s) { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\\\'").replace(/:/g,'\\:'); }
+
+            const drawtextFilters = chunks.map(c => {
+                const txt = escDT(c.text);
+                return `drawtext=text='${txt}'${fontFile}:fontsize=48:fontcolor=${fontColor}:borderw=3:bordercolor=black${boxParam}:x=(w-text_w)/2:y=h-text_h-40:enable='between(t,${c.start},${c.end})'`;
+            });
+
+            ffmpegArgs = ['-i', 'input.mp4', '-vf', drawtextFilters.join(','), '-c:a', 'copy', 'output.mp4'];
         }
         else if (actionType === 'reformat') {
             let targetW = 1080;
