@@ -961,8 +961,8 @@ async function loadFFmpeg() {
     if (ffmpeg && ffmpeg.loaded) return ffmpeg;
     $('vid-loading-engine').classList.remove('hidden');
 
-    await loadScript("/ffmpeg/ffmpeg.js");
-    await loadScript("/ffmpeg/util.js");
+    await loadScript("https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js");
+    await loadScript("https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js");
 
     const { FFmpeg } = window.FFmpegWASM;
     const { fetchFile, toBlobURL } = window.FFmpegUtil;
@@ -973,18 +973,31 @@ async function loadFFmpeg() {
         $('vid-export-progress').style.width = `${progress * 100}%`;
     });
 
-    const coreURL = await toBlobURL('/ffmpeg/ffmpeg-core.js', 'text/javascript');
-    const wasmURL = await toBlobURL('/ffmpeg/ffmpeg-core.wasm', 'application/wasm');
-    const classWorkerURL = await toBlobURL('/ffmpeg/worker.js', 'text/javascript');
+    // Intercept Worker creation to bypass cross-origin restrictions on the CDN worker chunk
+    const OriginalWorker = window.Worker;
+    window.Worker = function(url, options) {
+        const urlStr = url.toString();
+        if (urlStr.includes('unpkg.com') && urlStr.includes('ffmpeg')) {
+            const blob = new Blob([`importScripts('${urlStr}');`], { type: 'text/javascript' });
+            return new OriginalWorker(URL.createObjectURL(blob), options);
+        }
+        return new OriginalWorker(url, options);
+    };
 
-    await ffmpeg.load({ coreURL, wasmURL, classWorkerURL });
+    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+    const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+    const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+
+    await ffmpeg.load({ coreURL, wasmURL });
+    
+    window.Worker = OriginalWorker;
 
     // Download font for drawtext
     try {
-        const res = await fetch('/fonts/Roboto-Regular.ttf');
+        const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/material-design-icons/3.0.1/iconfont/Roboto-Regular.ttf');
         const fontBuf = await res.arrayBuffer();
         await ffmpeg.writeFile('roboto.ttf', new Uint8Array(fontBuf));
-    } catch(e) { console.log("Failed to fetch local font, subtitles may fail"); }
+    } catch(e) { console.log("Failed to fetch font, subtitles may fail"); }
 
     $('vid-loading-engine').classList.add('hidden');
     return ffmpeg;
